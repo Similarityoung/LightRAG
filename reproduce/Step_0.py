@@ -5,8 +5,12 @@ import argparse
 
 
 def extract_unique_contexts(input_directory, output_directory):
+    """
+    从指定目录的 JSONL 文件中提取唯一的 `context` 字段，并保存到新的 JSON 文件中。
+    """
     os.makedirs(output_directory, exist_ok=True)
 
+    # 查找输入目录下的所有 .jsonl 文件
     jsonl_files = glob.glob(os.path.join(input_directory, "*.jsonl"))
     print(f"Found {len(jsonl_files)} JSONL files.")
 
@@ -27,8 +31,10 @@ def extract_unique_contexts(input_directory, output_directory):
                     if not line:
                         continue
                     try:
+                        # 解析每一行的 JSON 对象
                         json_obj = json.loads(line)
                         context = json_obj.get("context")
+                        # 如果 context 存在且未被记录，则添加到字典中（去重）
                         if context and context not in unique_contexts_dict:
                             unique_contexts_dict[context] = None
                     except json.JSONDecodeError as e:
@@ -42,12 +48,14 @@ def extract_unique_contexts(input_directory, output_directory):
             print(f"An error occurred while processing file {filename}: {e}")
             continue
 
+        # 将去重后的 context 转换为列表
         unique_contexts_list = list(unique_contexts_dict.keys())
         print(
             f"There are {len(unique_contexts_list)} unique `context` entries in the file {filename}."
         )
 
         try:
+            # 将结果保存为 JSON 文件
             with open(output_path, "w", encoding="utf-8") as outfile:
                 json.dump(unique_contexts_list, outfile, ensure_ascii=False, indent=4)
             print(f"Unique `context` entries have been saved to: {output_filename}")

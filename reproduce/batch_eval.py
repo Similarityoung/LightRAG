@@ -6,22 +6,31 @@ from openai import OpenAI
 
 
 def batch_eval(query_file, result1_file, result2_file, output_file_path):
+    """
+    批量评估两个不同模型或配置对同一组问题的回答质量。
+    使用 GPT-4o-mini 作为评估者，基于全面性、多样性和赋能性三个维度进行打分。
+    """
     client = OpenAI()
 
+    # 读取问题文件
     with open(query_file, "r") as f:
         data = f.read()
 
+    # 提取问题列表
     queries = re.findall(r"- Question \d+: (.+)", data)
 
+    # 读取第一个结果文件
     with open(result1_file, "r") as f:
         answers1 = json.load(f)
     answers1 = [i["result"] for i in answers1]
 
+    # 读取第二个结果文件
     with open(result2_file, "r") as f:
         answers2 = json.load(f)
     answers2 = [i["result"] for i in answers2]
 
     requests = []
+    # 遍历每个问题及其对应的两个回答
     for i, (query, answer1, answer2) in enumerate(zip(queries, answers1, answers2)):
         sys_prompt = """
         ---Role---
@@ -72,6 +81,7 @@ def batch_eval(query_file, result1_file, result2_file, output_file_path):
         }}
         """
 
+        # 构建 OpenAI Batch API 请求数据
         request_data = {
             "custom_id": f"request-{i + 1}",
             "method": "POST",
@@ -87,17 +97,20 @@ def batch_eval(query_file, result1_file, result2_file, output_file_path):
 
         requests.append(request_data)
 
+    # 将请求写入 JSONL 文件
     with jsonlines.open(output_file_path, mode="w") as writer:
         for request in requests:
             writer.write(request)
 
     print(f"Batch API requests written to {output_file_path}")
 
+    # 上传文件到 OpenAI
     batch_input_file = client.files.create(
         file=open(output_file_path, "rb"), purpose="batch"
     )
     batch_input_file_id = batch_input_file.id
 
+    # 创建 Batch 任务
     batch = client.batches.create(
         input_file_id=batch_input_file_id,
         endpoint="/v1/chat/completions",
